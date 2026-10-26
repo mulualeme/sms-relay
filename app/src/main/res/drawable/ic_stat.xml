@@ -1,0 +1,4 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="512" android:viewportHeight="512">
+    <!-- speech bubble with a forward arrow cut out -->
+    <path android:fillColor="#FFFFFFFF" android:fillType="evenOdd" android:pathData="M152,112H360C391,112 416,137 416,168V296C416,327 391,352 360,352H232L160,408V352H152C121,352 96,327 96,296V168C96,137 121,112 152,112ZM176,212H286V172L356,232L286,292V252H176Z"/>
+</vector>
