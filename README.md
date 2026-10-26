@@ -10,10 +10,10 @@ Everything runs on the phone. There is no SMS Relay server: messages go straight
 
 ## Download
 
-- **Latest build:** open the [Actions tab](https://github.com/mulualeme/sms-relay/actions/workflows/build.yml), pick the newest successful run and download the `sms-relay-debug-apk` artifact.
-- **Releases:** tagged versions (`v1.0`, `v1.1`, …) attach the APK to the [Releases page](https://github.com/mulualeme/sms-relay/releases).
+- **Releases (recommended):** download `sms-relay-vX.Y.apk` from the [Releases page](https://github.com/mulualeme/sms-relay/releases). It is a signed release build, and later releases install over it as updates.
+- **Latest commit:** open the [Actions tab](https://github.com/mulualeme/sms-relay/actions/workflows/build.yml), pick the newest successful run and download the `sms-relay-release-apk` (or `sms-relay-debug-apk`) artifact.
 
-The APK is a debug build, so Android asks you to allow installing from unknown sources. Play Protect or your phone's app scanner may also warn about it, because an app that reads and forwards SMS looks like that to an automatic scanner. Read the code first if you are unsure.
+Because the APK comes from outside the Play Store, Android asks you to allow installing from unknown sources. Play Protect or your phone's app scanner may also warn about it, because an app that reads and forwards SMS looks like that to an automatic scanner. Read the code first if you are unsure.
 
 ## How it works
 
@@ -137,11 +137,32 @@ You need JDK 17 and the Android SDK (API 36).
 ./gradlew assembleDebug       # APK at app/build/outputs/apk/debug/app-debug.apk
 ```
 
-Every push to `main` and every pull request runs the same steps on GitHub Actions. Pushing a tag such as `v1.0` also publishes a release with the APK attached:
+### Signed release builds
+
+The release build is signed from four environment variables. Without them, `assembleRelease` produces an unsigned APK.
+
+| Variable | Value |
+|---|---|
+| `SIGNING_STORE_FILE` | Path to the `.jks` keystore |
+| `SIGNING_STORE_PASSWORD` | Keystore password |
+| `SIGNING_KEY_ALIAS` | Key alias |
+| `SIGNING_KEY_PASSWORD` | Key password |
+
+```bash
+./gradlew assembleRelease     # APK at app/build/outputs/apk/release/app-release.apk
+```
+
+### CI and releases
+
+Every push to `main` and every pull request runs the tests and builds the debug APK on GitHub Actions. When the repository has the signing secrets (`SIGNING_KEYSTORE_BASE64`, the keystore file base64-encoded, plus `SIGNING_STORE_PASSWORD`, `SIGNING_KEY_ALIAS` and `SIGNING_KEY_PASSWORD`), it also builds the signed release APK.
+
+Pushing a tag such as `v1.0` publishes a GitHub release with the signed APK attached:
 
 ```bash
 git tag v1.0 && git push origin v1.0
 ```
+
+Keep the keystore and its password backed up. Android only installs an update when it is signed with the same key, so if the key is lost, existing installs can't be updated.
 
 ### Project layout
 
