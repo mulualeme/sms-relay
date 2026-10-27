@@ -66,4 +66,7 @@ jobs:
           else
             cp app/build/outputs/apk/debug/app-debug.apk "sms-relay-${GITHUB_REF_NAME}-debug.apk"
           fi
-          gh release create "$GITHUB_REF_NAME" sms-relay-*.apk --generate-notes
+          # notes = this tag's section of CHANGELOG.md (GitHub's generated notes only list pull requests)
+          awk -v tag="## $GITHUB_REF_NAME" '$0 == tag {on=1; next} /^## / {on=0} on' CHANGELOG.md > notes.md
+          [ -s notes.md ] || echo "See CHANGELOG.md" > notes.md
+          gh release create "$GITHUB_REF_NAME" sms-relay-*.apk --notes-file notes.md
