@@ -52,6 +52,42 @@ class ModelTest {
         assertFalse(Rule(kind = RuleKind.NOTIFICATION, allApps = false, apps = listOf("org.telegram")).matches(n, monNoon))
     }
 
+    @Test fun senderFilters() {
+        val ethio = Event(EventType.SMS, "+251945287216", "Chris Abebe", "hi", time = 0)
+        fun r(f: Filter, v: String) = Rule(kind = RuleKind.BASIC, allSenders = false, senders = listOf(Condition(f, v)))
+        // same number in local / international / spaced formats
+        assertTrue(r(Filter.ExactlyMatches, "0945287216").matches(ethio, monNoon))
+        assertTrue(r(Filter.Contains, "0945287216").matches(ethio, monNoon))
+        assertTrue(r(Filter.ExactlyMatches, "+251 94 528 7216").matches(ethio, monNoon))
+        assertFalse(r(Filter.ExactlyMatches, "0911223344").matches(ethio, monNoon))
+        // contact name
+        assertTrue(r(Filter.StartsWith, "chris").matches(ethio, monNoon))
+        // "does not contain" must hold for number AND name
+        assertFalse(r(Filter.DoesNotContain, "Abebe").matches(ethio, monNoon))
+        assertFalse(r(Filter.DoesNotContain, "0945287216").matches(ethio, monNoon))
+        assertTrue(r(Filter.DoesNotContain, "CBE").matches(ethio, monNoon))
+        // alphanumeric sender ids (banks, telecom)
+        val bank = Event(EventType.SMS, "CBEBirr", null, "You received 100 ETB", time = 0)
+        assertTrue(r(Filter.Contains, "cbe").matches(bank, monNoon))
+        assertFalse(r(Filter.Contains, "telebirr").matches(bank, monNoon))
+        assertTrue(r(Filter.DoesNotContain, "telebirr").matches(bank, monNoon))
+        // short codes are not treated as phone numbers
+        assertFalse(r(Filter.ExactlyMatches, "127").matches(Event(EventType.SMS, "8127", null, "x", time = 0), monNoon))
+    }
+
+    @Test fun rejectReasons() {
+        val e = Event(EventType.SMS, "1234567890", null, "This is a sample SMS", time = 0)
+        val base = Rule(kind = RuleKind.ADVANCED)
+        assertEquals(null, base.rejectReason(e, monNoon))
+        assertEquals("Sender does not contain CBE", base.copy(allSenders = false, senders = listOf(Condition(Filter.Contains, "CBE"))).rejectReason(e, monNoon))
+        assertEquals("Sender does not match any of the conditions",
+            base.copy(allSenders = false, senders = listOf(Condition(Filter.Contains, "CBE"), Condition(Filter.Contains, "Bank"))).rejectReason(e, monNoon))
+        assertEquals("Message does not contain OTP",
+            base.copy(allContent = false, groups = listOf(Group(conditions = listOf(Condition(Filter.Contains, "OTP"))))).rejectReason(e, monNoon))
+        assertEquals("Weekday is not selected", base.copy(days = setOf(2)).rejectReason(e, monNoon))
+        assertEquals("Rule is currently in paused status.", base.copy(paused = true).rejectReason(e, monNoon))
+    }
+
     @Test fun templates() {
         // matches the original's preview: "From: 1234 (Contact Name) \nThis is a sample SMS \nReceived At: 7/17/2022 4:00 PM "
         assertEquals("From: 1234 (Contact Name) \nThis is a sample SMS \nReceived At: 7/17/2022 4:00 PM ", render(SMS_MESSAGE, SAMPLE, "Rule 1", preview = true))

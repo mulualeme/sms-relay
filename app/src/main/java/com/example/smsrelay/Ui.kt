@@ -90,7 +90,7 @@ fun RelayTheme(content: @Composable () -> Unit) {
             titleLarge = base.copy(fontSize = 22.sp), titleMedium = base.copy(fontSize = 17.sp), labelLarge = base.copy(fontSize = 16.sp, fontWeight = FontWeight.SemiBold),
         ),
     ) {
-        // Everything was ~1.15x the original on device; scale all dp/sp down uniformly.
+        // Everything was ~1.25x the original on device; scale all dp/sp down uniformly.
         val real = LocalDensity.current
         CompositionLocalProvider(LocalDensity provides Density(real.density * UI_SCALE, real.fontScale)) {
             ProvideTextStyle(base.copy(fontSize = 17.sp), content)
@@ -98,7 +98,7 @@ fun RelayTheme(content: @Composable () -> Unit) {
     }
 }
 
-const val UI_SCALE = 0.88f // ponytail: one knob for overall size; tune if it still feels off
+const val UI_SCALE = 0.8f // ponytail: one knob for overall size; tune if it still feels off
 
 @Composable
 fun T(text: String, size: TextUnit = 17.sp, color: Color = Color.Black, weight: FontWeight = FontWeight.Normal, modifier: Modifier = Modifier, maxLines: Int = Int.MAX_VALUE) =
@@ -106,10 +106,10 @@ fun T(text: String, size: TextUnit = 17.sp, color: Color = Color.Black, weight: 
 
 @Composable
 fun AppBar(title: String, centered: Boolean = false, icon: ImageVector = Icons.AutoMirrored.Filled.ArrowBack, desc: String = "Navigate Back", onNav: () -> Unit) {
-    Box(Modifier.fillMaxWidth().height(64.dp).background(Green).shadow(2.dp)) {
+    Box(Modifier.fillMaxWidth().height(70.dp).background(Green).shadow(2.dp)) { // toolbar sized up so it stays at the original 56dp after UI_SCALE
         Box(Modifier.fillMaxSize().background(Green))
-        IconButton(onNav, Modifier.align(Alignment.CenterStart).padding(start = 4.dp)) { Icon(icon, desc, tint = Color.White, modifier = Modifier.size(28.dp)) }
-        T(title, 23.sp, Color.White, modifier = if (centered) Modifier.align(Alignment.Center) else Modifier.align(Alignment.CenterStart).padding(start = 80.dp))
+        IconButton(onNav, Modifier.align(Alignment.CenterStart).padding(start = 4.dp)) { Icon(icon, desc, tint = Color.White, modifier = Modifier.size(31.dp)) }
+        T(title, 25.sp, Color.White, modifier = if (centered) Modifier.align(Alignment.Center) else Modifier.align(Alignment.CenterStart).padding(start = 88.dp))
     }
 }
 

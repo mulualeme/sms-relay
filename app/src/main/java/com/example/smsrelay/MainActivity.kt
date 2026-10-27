@@ -74,6 +74,7 @@ fun App(st: Store) {
     fun commit(r: Rule) {
         rules = if (rules.any { it.id == r.id }) rules.map { if (it.id == r.id) r else it } else rules + r
         st.rules = rules
+        AlwaysOnService.sync(ctx) // picks up permissions granted just now (MMS watcher)
         stack = listOf(Screen.Top(Root.Dashboard), Screen.RulesList)
         testRule = r
         if (needsNotificationAccess(r) && ctx.packageName !in NotificationManagerCompat.getEnabledListenerPackages(ctx)) askAccess = true

@@ -142,11 +142,26 @@ fun Condition.test(s: String) = when (filter) {
 fun Group.active() = conditions.filter { it.value.isNotBlank() }
 fun Group.test(s: String) = active().let { c -> if (all) c.all { it.test(s) } else c.any { it.test(s) } }
 
-/** Sender filters match the number (also digits-only) or the contact name. */
+private fun phoneDigits(s: String) = s.filter(Char::isDigit).trimStart('0')
+
+/** Same phone number written differently: "+251 94 528 7216" == "0945287216" (the trailing digits agree). */
+fun samePhone(a: String, b: String): Boolean {
+    if (a.any(Char::isLetter) || b.any(Char::isLetter)) return false
+    val x = phoneDigits(a); val y = phoneDigits(b)
+    return x.length >= 7 && y.length >= 7 && (x.endsWith(y) || y.endsWith(x))
+}
+
+/** Sender filters look at the number (in any format) and the saved contact name. */
 fun Condition.testSender(sender: String, name: String?): Boolean {
-    if (test(sender) || (name != null && test(name))) return true
-    val digits = sender.filter(Char::isDigit)
-    return filter != Filter.DoesNotContain && digits.length >= 3 && value.any(Char::isDigit) && copy(value = value.filter(Char::isDigit)).test(digits)
+    val fields = listOfNotNull(sender, name)
+    val digits = value.filter(Char::isDigit)
+    val numberHit = value.none(Char::isLetter) && digits.length >= 3 && sender.filter(Char::isDigit).contains(digits)
+    return when (filter) {
+        Filter.DoesNotContain -> fields.none { it.contains(value, true) } && !numberHit && !samePhone(sender, value)
+        Filter.Contains -> fields.any { test(it) } || numberHit || samePhone(sender, value)
+        Filter.ExactlyMatches, Filter.EndsWith -> fields.any { test(it) } || samePhone(sender, value)
+        Filter.StartsWith, Filter.Regex -> fields.any { test(it) }
+    }
 }
 
 fun Rule.inSchedule(now: LocalDateTime): Boolean {
@@ -156,22 +171,51 @@ fun Rule.inSchedule(now: LocalDateTime): Boolean {
     return m in start..end
 }
 
-fun Rule.matches(e: Event, now: LocalDateTime = LocalDateTime.now()): Boolean {
-    if (paused) return false
-    when (kind) {
-        RuleKind.NOTIFICATION -> if (e.type != EventType.NOTIFICATION || (!allApps && e.app !in apps)) return false
-        RuleKind.AUTO_REPLY -> return false
-        else -> if (e.type != EventType.SMS || (e.rcs && !forwardRcs) || (receiveSim >= 0 && e.subId != receiveSim)) return false
+/** Wording of the original app's "why wasn't this forwarded" messages. */
+private fun Condition.failure(noun: String) = "$noun " + when (filter) {
+    Filter.Contains -> "does not contain"
+    Filter.DoesNotContain -> "contains"
+    Filter.StartsWith -> "does not start with"
+    Filter.EndsWith -> "does not end with"
+    Filter.ExactlyMatches -> "does not exactly match with"
+    Filter.Regex -> "does not match regex"
+} + " $value"
+
+/** Null when the rule forwards [e]; otherwise the reason it doesn't (shown by Test Rule). */
+fun Rule.rejectReason(e: Event, now: LocalDateTime = LocalDateTime.now()): String? {
+    if (paused) return "Rule is currently in paused status."
+    val notif = kind == RuleKind.NOTIFICATION
+    if (notif) {
+        if (!allApps && e.app !in apps) return "App is not selected"
+    } else {
+        if (e.rcs && !forwardRcs) return "RCS is not allowed"
+        if (receiveSim >= 0 && e.subId != receiveSim) return "Sender SIM does not match"
     }
     if (!allSenders) {
         val f = senders.filter { it.value.isNotBlank() }
-        if (f.isNotEmpty() && f.none { it.testSender(e.sender, e.name) }) return false
+        if (f.isNotEmpty() && f.none { it.testSender(e.sender, e.name) })
+            return if (f.size == 1) f[0].failure(if (notif) "Title" else "Sender") else "${if (notif) "Title" else "Sender"} does not match any of the conditions"
     }
     if (!allContent) {
         val g = groups.filter { it.active().isNotEmpty() }
-        if (g.isNotEmpty() && g.none { it.test(e.body) }) return false
+        if (g.isNotEmpty() && g.none { it.test(e.body) }) return when {
+            g.size > 1 -> "Message does not match any of the group conditions"
+            g[0].active().size == 1 -> g[0].active()[0].failure("Message")
+            else -> "Message does not match any of the conditions"
+        }
     }
-    return inSchedule(now)
+    if (now.dayOfWeek.value !in days) return "Weekday is not selected"
+    if (!inSchedule(now)) return "Received Date out of range"
+    return null
+}
+
+fun Rule.matches(e: Event, now: LocalDateTime = LocalDateTime.now()): Boolean {
+    val typeOk = when (kind) {
+        RuleKind.NOTIFICATION -> e.type == EventType.NOTIFICATION
+        RuleKind.AUTO_REPLY -> false
+        else -> e.type == EventType.SMS
+    }
+    return typeOk && rejectReason(e, now) == null
 }
 
 val TIME_FMT: DateTimeFormatter = DateTimeFormatter.ofPattern("M/d/yyyy, h:mm a", Locale.US)

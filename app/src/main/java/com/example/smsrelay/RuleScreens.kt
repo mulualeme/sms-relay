@@ -443,7 +443,11 @@ fun TestRuleDialog(rule: Rule, onClose: () -> Unit) {
                 result = withContext(Dispatchers.IO) {
                     if (rule.kind == RuleKind.AUTO_REPLY) return@withContext "Reply: " + replyFormat(rule.replyMessage, Event(EventType.SMS, sender, contactName(ctx, sender), msg))
                     val type = if (rule.kind == RuleKind.NOTIFICATION) EventType.NOTIFICATION else EventType.SMS
-                    val e = Event(type, sender, contactName(ctx, sender), msg, appLabel = APP_NAME, sim = sims(ctx).firstOrNull()?.detail.orEmpty())
+                    val sim = sims(ctx).let { l -> l.firstOrNull { it.id == rule.receiveSim } ?: l.firstOrNull() }
+                    val e = Event(type, sender, contactName(ctx, sender), msg, app = rule.apps.firstOrNull(), appLabel = APP_NAME,
+                        subId = sim?.id ?: -1, sim = sim?.detail.orEmpty())
+                    // like the original: a test message that the rule's filters reject is not sent
+                    rule.copy(paused = false).rejectReason(e)?.let { return@withContext "Following error occurred while sending Test SMS:\n$it" }
                     val res = Forwarder.deliver(ctx, Store(ctx), rule, e, rule.targets, queue = false)
                     val errs = res.filter { !it.ok }
                     if (errs.isEmpty()) "Test SMS sent successfully. If not received, please check spam or junk folder for email receiver."

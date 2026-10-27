@@ -151,10 +151,11 @@ class AlwaysOnService : Service() {
             .setContentIntent(open).setOngoing(true).build()
         if (Build.VERSION.SDK_INT >= 34) startForeground(1, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_REMOTE_MESSAGING) else startForeground(1, n)
         registerReceiver(battery, IntentFilter(Intent.ACTION_BATTERY_LOW))
+        Mms.watch(this)
     }
 
-    override fun onDestroy() { unregisterReceiver(battery); super.onDestroy() }
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int) = START_STICKY
+    override fun onDestroy() { unregisterReceiver(battery); Mms.stop(this); super.onDestroy() }
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int { Mms.watch(this); return START_STICKY } // retry once SMS permission is granted
     override fun onBind(intent: Intent?) = null
 
     companion object {
@@ -186,4 +187,71 @@ class NotifListener : NotificationListenerService() {
     }
 
     companion object { val recentSms = java.util.concurrent.ConcurrentHashMap<String, Long>() }
+}
+
+/**
+ * MMS (picture messages, and long texts some carriers send as MMS) never reach SMS_RECEIVED.
+ * Watch the system message store and forward each newly downloaded inbox MMS as an SMS event.
+ */
+object Mms {
+    private val INBOX = Uri.parse("content://mms/inbox")
+    private var observer: android.database.ContentObserver? = null
+
+    fun watch(ctx: Context) {
+        if (observer != null || !ctx.granted(Manifest.permission.READ_SMS)) return
+        val app = ctx.applicationContext
+        val prefs = app.getSharedPreferences("mms", Context.MODE_PRIVATE)
+        if (!prefs.contains("lastId")) prefs.edit().putLong("lastId", latestId(app)).apply() // don't forward old MMS
+        observer = object : android.database.ContentObserver(Handler(Looper.getMainLooper())) {
+            override fun onChange(selfChange: Boolean) = check(app)
+        }.also { app.contentResolver.registerContentObserver(Uri.parse("content://mms-sms/"), true, it) }
+    }
+
+    fun stop(ctx: Context) {
+        observer?.let { ctx.applicationContext.contentResolver.unregisterContentObserver(it) }
+        observer = null
+    }
+
+    private fun latestId(ctx: Context): Long = runCatching {
+        ctx.contentResolver.query(INBOX, arrayOf("_id"), null, null, "_id DESC")?.use { if (it.moveToFirst()) it.getLong(0) else 0L }
+    }.getOrNull() ?: 0L
+
+    @Synchronized private fun check(ctx: Context) {
+        val prefs = ctx.getSharedPreferences("mms", Context.MODE_PRIVATE)
+        val last = prefs.getLong("lastId", 0)
+        // m_type 132 = retrieved (downloaded) message; notification-only rows have no content yet
+        val rows = runCatching {
+            ctx.contentResolver.query(INBOX, arrayOf("_id", "sub_id", "date"), "_id > ? AND m_type = 132", arrayOf("$last"), "_id ASC")?.use { c ->
+                buildList { while (c.moveToNext()) add(Triple(c.getLong(0), c.getInt(1), c.getLong(2) * 1000)) }
+            }
+        }.getOrNull().orEmpty()
+        for ((id, subId, date) in rows) {
+            prefs.edit().putLong("lastId", id).apply()
+            val from = address(ctx, id) ?: continue
+            val (text, attachments) = parts(ctx, id)
+            NotifListener.recentSms[text.trim()] = System.currentTimeMillis()
+            val body = listOfNotNull(text.ifBlank { null }, if (attachments > 0) "[MMS: $attachments attachment(s)]" else null).joinToString("\n")
+            Forwarder.onEvent(ctx, Event(EventType.SMS, from, contactName(ctx, from), body, subId = subId,
+                sim = sims(ctx).firstOrNull { it.id == subId }?.detail.orEmpty(), time = date))
+        }
+    }
+
+    // type 137 = the "from" address of an MMS
+    private fun address(ctx: Context, id: Long): String? = runCatching {
+        ctx.contentResolver.query(Uri.parse("content://mms/$id/addr"), arrayOf("address"), "type = 137", null, null)?.use { if (it.moveToFirst()) it.getString(0) else null }
+    }.getOrNull()
+
+    private fun parts(ctx: Context, id: Long): Pair<String, Int> {
+        var text = ""; var other = 0
+        runCatching {
+            ctx.contentResolver.query(Uri.parse("content://mms/part"), arrayOf("ct", "text"), "mid = ?", arrayOf("$id"), null)?.use { c ->
+                while (c.moveToNext()) when (val ct = c.getString(0).orEmpty()) {
+                    "text/plain" -> text += c.getString(1).orEmpty()
+                    "application/smil" -> {}
+                    else -> if (ct.isNotEmpty()) other++
+                }
+            }
+        }
+        return text to other
+    }
 }
