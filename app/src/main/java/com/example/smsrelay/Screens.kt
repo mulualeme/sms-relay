@@ -156,13 +156,13 @@ fun RulesListScreen(rules: List<Rule>, onBack: () -> Unit, onEdit: (Rule) -> Uni
     del?.let { r -> ConfirmDialog("Delete Rule", "Please confirm to delete rule.", "Cancel", "Delete", { del = null }) { del = null; onDelete(r) } }
     Column(Modifier.fillMaxSize().background(Bg)) {
         AppBar("Rules List", onNav = onBack)
-        Column(Modifier.verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Column(Modifier.verticalScroll(rememberScrollState()).padding(start = 16.dp, end = 16.dp, top = 24.dp, bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             if (rules.isEmpty()) T("No Rules", 18.sp, Grey, modifier = Modifier.fillMaxWidth().padding(top = 200.dp).wrapContentWidth())
             rules.forEach { r ->
                 var menu by remember { mutableStateOf(false) }
                 WhiteCard(Modifier.clickable { onEdit(r) }) {
-                    Row(Modifier.padding(start = 20.dp, top = 12.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                        T(r.name, 24.sp)
+                    Row(Modifier.padding(start = 20.dp, top = 3.dp, bottom = 3.dp), verticalAlignment = Alignment.CenterVertically) {
+                        T(r.name, 22.5.sp)
                         if (r.paused) T("Paused", 14.sp, Orange, modifier = Modifier.padding(start = 12.dp))
                         Spacer(Modifier.weight(1f))
                         Box {

@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.4
+
+### Fixed
+- **Rule editor screens, Rules List and Edit URL Config match the original's size.** Template chips, buttons, text fields, dropdown boxes, step titles, help icons and day circles were 10–20% larger than the original.
+- **The "Previous" button no longer wraps onto two lines** ("Previou / s").
+- **Rule menu (Edit / Test / Pause / Delete)** uses the original's text size and spacing.
+
 ## v1.3
 
 ### Fixed

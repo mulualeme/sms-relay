@@ -137,7 +137,7 @@ fun BasicRuleScreen(initial: Rule, isNew: Boolean, onSave: (Rule) -> Unit, onBac
 private fun SenderFilters(r: Rule, title: String, helpTitle: String, helpText: String, allLabel: String, placeholder: String, button: String, onChange: (Rule) -> Unit) {
     var help by remember { mutableStateOf(false) }
     if (help) InfoDialog(helpTitle, helpText) { help = false }
-    Heading(title, 24.sp, FontWeight.SemiBold) { help = true }
+    Heading(title, 22.5.sp, FontWeight.SemiBold) { help = true }
     Spacer(Modifier.height(12.dp))
     SwitchRow(allLabel, r.allSenders) { onChange(r.copy(allSenders = it)) }
     if (!r.allSenders) {
@@ -161,7 +161,7 @@ private fun ContentGroups(r: Rule, title: String, helpTitle: String, helpText: S
     var help by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<Int?>(null) }
     if (help) InfoDialog(helpTitle, helpText) { help = false }
-    Heading(title, 24.sp, FontWeight.SemiBold) { help = true }
+    Heading(title, 22.5.sp, FontWeight.SemiBold) { help = true }
     Spacer(Modifier.height(12.dp))
     SwitchRow(allLabel, r.allContent) { onChange(r.copy(allContent = it)) }
     if (!r.allContent) {
@@ -239,7 +239,7 @@ fun AdvancedRuleScreen(initial: Rule, isNew: Boolean, onSave: (Rule) -> Unit, on
     }) {
         when (step) {
             0 -> {
-                Heading("Where to forward SMS", 24.sp, FontWeight.SemiBold) { help = "Where to forward SMS" to "Enter the contact detail where the SMS should be forwarded. You can enter multiple recipients." }
+                Heading("Where to forward SMS", 22.5.sp, FontWeight.SemiBold) { help = "Where to forward SMS" to "Enter the contact detail where the SMS should be forwarded. You can enter multiple recipients." }
                 T("Enter the contact detail where the SMS should be forwarded. You can select phone number, email, telegram ID or URL.", 14.sp, Grey, modifier = Modifier.padding(top = 6.dp, bottom = 14.dp))
                 Receivers2(r, UrlKind.SMS, true) { r = it }
             }
@@ -311,7 +311,7 @@ fun NotificationRuleScreen(initial: Rule, isNew: Boolean, onSave: (Rule) -> Unit
     }) {
         when (step) {
             0 -> {
-                Heading("Where to forward Notification", 24.sp, FontWeight.SemiBold) { help = "Where to forward Notification?" to "Enter the contact detail where the notification should be forwarded. You can enter multiple recipients." }
+                Heading("Where to forward Notification", 22.5.sp, FontWeight.SemiBold) { help = "Where to forward Notification?" to "Enter the contact detail where the notification should be forwarded. You can enter multiple recipients." }
                 T("Enter the contact detail where the notification should be forwarded. You can select phone number, email, telegram ID or URL.", 14.sp, Grey, modifier = Modifier.padding(top = 6.dp, bottom = 14.dp))
                 Receivers2(r, UrlKind.NOTIFICATION, true) { r = it }
             }

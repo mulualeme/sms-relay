@@ -20,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.HelpOutline
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.*
@@ -127,7 +128,7 @@ fun AppBar(title: String, centered: Boolean = false, icon: ImageVector = Icons.A
 }
 
 @Composable
-fun HelpIcon(onClick: () -> Unit) = Icon(Icons.Outlined.HelpOutline, "help", tint = HelpBlue, modifier = Modifier.padding(start = 8.dp).size(28.dp).clip(CircleShape).clickable(onClick = onClick))
+fun HelpIcon(onClick: () -> Unit) = Icon(Icons.Outlined.HelpOutline, "help", tint = HelpBlue, modifier = Modifier.padding(start = 8.dp).size(24.dp).clip(CircleShape).clickable(onClick = onClick))
 
 @Composable
 fun Heading(text: String, size: TextUnit = 20.sp, weight: FontWeight = FontWeight.Normal, help: (() -> Unit)? = null) =
@@ -158,35 +159,35 @@ fun ConfirmDialog(title: String, text: String, no: String, yes: String, onNo: ()
 @Composable
 fun GreenDialog(title: String, onDismiss: () -> Unit, full: Boolean = false, bg: Color = Color(0xFFF7F7F7), footer: @Composable RowScope.() -> Unit, content: @Composable ColumnScope.() -> Unit) =
     ScaledDialog(onDismiss, DialogProperties(usePlatformDefaultWidth = false)) {
-        Surface(Modifier.padding(horizontal = 16.dp, vertical = if (full) 24.dp else 0.dp).fillMaxWidth().then(if (full) Modifier.fillMaxHeight() else Modifier),
+        Surface(Modifier.padding(horizontal = 11.dp, vertical = if (full) 12.dp else 0.dp).fillMaxWidth().then(if (full) Modifier.fillMaxHeight() else Modifier),
             shape = RoundedCornerShape(4.dp), color = bg) {
             Column {
-                Box(Modifier.fillMaxWidth().background(Green).padding(horizontal = 24.dp, vertical = 14.dp)) { T(title, 22.sp, Color.White) }
-                Column(Modifier.weight(1f, false).verticalScroll(rememberScrollState()).padding(20.dp), content = content)
+                Box(Modifier.fillMaxWidth().background(Green).padding(horizontal = 14.dp, vertical = 9.dp)) { T(title, 22.sp, Color.White) }
+                Column(Modifier.weight(1f, false).verticalScroll(rememberScrollState()).padding(12.dp), content = content)
                 if (full) HorizontalDivider(color = Grey)
-                Row(Modifier.fillMaxWidth().padding(20.dp), horizontalArrangement = Arrangement.spacedBy(20.dp, Alignment.End), content = footer)
+                Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End), content = footer)
             }
         }
     }
 
 @Composable
-fun GreenButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true, icon: ImageVector? = null) =
-    Button(onClick, modifier.heightIn(min = 46.dp), enabled = enabled, shape = RoundedCornerShape(4.dp),
+fun GreenButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true, icon: ImageVector? = null, weight: FontWeight = FontWeight.SemiBold) =
+    Button(onClick, modifier.heightIn(min = 40.dp), enabled = enabled, shape = RoundedCornerShape(4.dp),
         colors = ButtonDefaults.buttonColors(Green, Color.White, Divider, Grey), elevation = ButtonDefaults.buttonElevation(3.dp),
-        contentPadding = PaddingValues(horizontal = 24.dp)) {
-        icon?.let { Icon(it, null, Modifier.size(26.dp)); Spacer(Modifier.width(12.dp)) }
-        T(text, 17.sp, if (enabled) Color.White else Grey, FontWeight.SemiBold)
+        contentPadding = PaddingValues(horizontal = 20.dp)) {
+        icon?.let { Icon(it, null, Modifier.size(24.dp)); Spacer(Modifier.width(12.dp)) }
+        T(text, 16.sp, if (enabled) Color.White else Grey, weight, maxLines = 1)
     }
 
 @Composable
 fun LightButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, bg: Color = Bg) =
-    OutlinedButton(onClick, modifier.heightIn(min = 46.dp), shape = RoundedCornerShape(4.dp), border = BorderStroke(1.dp, Divider),
-        colors = ButtonDefaults.outlinedButtonColors(containerColor = bg), contentPadding = PaddingValues(horizontal = 24.dp)) {
-        T(text, 17.sp, Green, FontWeight.SemiBold)
+    OutlinedButton(onClick, modifier.heightIn(min = 40.dp), shape = RoundedCornerShape(4.dp), border = BorderStroke(1.dp, Divider),
+        colors = ButtonDefaults.outlinedButtonColors(containerColor = bg), contentPadding = PaddingValues(horizontal = 20.dp)) {
+        T(text, 16.sp, Green, FontWeight.SemiBold, maxLines = 1)
     }
 
 @Composable
-fun Field(value: String, onChange: (String) -> Unit, placeholder: String, modifier: Modifier = Modifier, singleLine: Boolean = true, minHeight: Dp = 48.dp,
+fun Field(value: String, onChange: (String) -> Unit, placeholder: String, modifier: Modifier = Modifier, singleLine: Boolean = true, minHeight: Dp = 42.dp,
           error: Boolean = false, keyboard: KeyboardType = KeyboardType.Text, password: Boolean = false, trailing: (@Composable () -> Unit)? = null) {
     var focused by remember { mutableStateOf(false) }
     var show by remember { mutableStateOf(false) }
@@ -195,7 +196,7 @@ fun Field(value: String, onChange: (String) -> Unit, placeholder: String, modifi
         visualTransformation = if (password && !show) PasswordVisualTransformation() else VisualTransformation.None,
         decorationBox = { inner ->
             Row(Modifier.fillMaxWidth().heightIn(min = minHeight).border(if (focused || error) 1.5.dp else 1.dp, if (error) Color.Red else if (focused) Green else Border, RoundedCornerShape(3.dp))
-                .padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = if (singleLine) Alignment.CenterVertically else Alignment.Top) {
+                .padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = if (singleLine) Alignment.CenterVertically else Alignment.Top) {
                 Box(Modifier.weight(1f)) { if (value.isEmpty()) T(placeholder, 18.sp, Color(0xFFAAAAAA)); inner() }
                 if (password) Icon(if (show) Icons.Default.VisibilityOff else Icons.Default.Visibility, "Show password", Modifier.size(28.dp).clickable { show = !show })
                 if (error) Icon(Icons.Default.Error, "error", tint = Color.Red, modifier = Modifier.size(24.dp))
@@ -207,11 +208,11 @@ fun Field(value: String, onChange: (String) -> Unit, placeholder: String, modifi
 
 /** Grey box with green label and ▼, opening a dropdown (the original's spinner look). */
 @Composable
-fun <T> DropBox(value: T, options: List<T>, label: (T) -> String, onPick: (T) -> Unit, modifier: Modifier = Modifier, desc: String = "Show Options") {
+fun <T> DropBox(value: T, options: List<T>, label: (T) -> String, onPick: (T) -> Unit, modifier: Modifier = Modifier, desc: String = "Show Options", bg: Color = Bg) {
     var open by remember { mutableStateOf(false) }
     Box(modifier) {
-        Row(Modifier.height(52.dp).background(Bg, RoundedCornerShape(3.dp)).border(1.dp, Divider, RoundedCornerShape(3.dp)).clickable { open = true }
-            .padding(horizontal = 18.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.height(46.dp).background(bg, RoundedCornerShape(3.dp)).border(1.dp, Divider, RoundedCornerShape(3.dp)).clickable { open = true }
+            .padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
             T(label(value), 17.sp, Green, FontWeight.SemiBold)
             Icon(Icons.Default.ArrowDropDown, desc, tint = Green, modifier = Modifier.padding(start = 8.dp))
         }
@@ -223,9 +224,9 @@ fun <T> DropBox(value: T, options: List<T>, label: (T) -> String, onPick: (T) ->
 fun Menu(open: Boolean, onClose: () -> Unit, items: List<Pair<String, () -> Unit>>, icons: List<ImageVector?>? = null) =
     ScaledMenu(open, onClose) {
         items.forEachIndexed { i, (t, f) ->
-            DropdownMenuItem({ T(t, 17.sp, if (icons != null) Color(0xFF555555) else Color.Black) }, { onClose(); f() },
+            DropdownMenuItem({ T(t, if (icons != null) 18.sp else 17.sp, if (icons != null) Color(0xFF444444) else Color.Black) }, { onClose(); f() },
                 leadingIcon = icons?.get(i)?.let { { Icon(it, null, tint = Color(0xFF555555), modifier = Modifier.size(28.dp)) } },
-                contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp))
+                contentPadding = PaddingValues(horizontal = if (icons != null) 16.dp else 24.dp, vertical = if (icons != null) 14.dp else 12.dp))
         }
     }
 
@@ -235,7 +236,7 @@ fun Check(checked: Boolean, onChange: (Boolean) -> Unit) = Checkbox(checked, onC
 
 @Composable
 fun CheckRow(text: String, checked: Boolean, help: (() -> Unit)? = null, size: TextUnit = 17.sp, onChange: (Boolean) -> Unit) =
-    Row(Modifier.fillMaxWidth().clickable { onChange(!checked) }.padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.fillMaxWidth().clickable { onChange(!checked) }, verticalAlignment = Alignment.CenterVertically) {
         Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) { T(text, size); help?.let { HelpIcon(it) } }
         Check(checked, onChange)
     }
@@ -256,7 +257,7 @@ fun SwitchRow(text: String, on: Boolean, help: (() -> Unit)? = null, onChange: (
     }
 
 @Composable
-fun Section(label: String) = Column(Modifier.padding(top = 20.dp, bottom = 8.dp)) {
+fun Section(label: String) = Column(Modifier.padding(top = 14.dp, bottom = 8.dp)) {
     HorizontalDivider(color = Divider, thickness = 1.dp)
     T(label, 13.sp, modifier = Modifier.padding(top = 6.dp))
 }
@@ -339,7 +340,7 @@ enum class UrlKind(val props: List<Pair<String, String>>, val templates: List<Pa
 @Composable
 fun Properties(props: List<Pair<String, String>>, intro: String? = null, footer: String? = "View detailed description here", bg: Color = Color(0xFFF1F1F1)) {
     var open by remember { mutableStateOf(false) }
-    Column(Modifier.fillMaxWidth().background(bg, RoundedCornerShape(3.dp)).border(1.dp, Border, RoundedCornerShape(3.dp)).padding(horizontal = 16.dp, vertical = 8.dp)) {
+    Column(Modifier.fillMaxWidth().background(bg, RoundedCornerShape(3.dp)).border(1.dp, Border, RoundedCornerShape(3.dp)).padding(horizontal = 12.dp)) {
         Row(Modifier.fillMaxWidth().clickable { open = !open }.padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             T("Available Properties", 18.sp, modifier = Modifier.weight(1f))
             Icon(if (open) Icons.Default.Remove else Icons.Default.Add, "Show Available Properties", tint = Green, modifier = Modifier.size(36.dp))
@@ -365,12 +366,12 @@ fun UrlConfigDialog(initial: Target, kind: UrlKind, onCancel: () -> Unit, onSave
     }) {
         T("Method", 18.sp)
         Spacer(Modifier.height(8.dp))
-        DropBox(t.method, listOf("POST", "PUT", "GET"), { it }, { t = t.copy(method = it) }, Modifier.width(120.dp), "Show Receiver Options")
+        DropBox(t.method, listOf("POST", "PUT", "GET"), { it }, { t = t.copy(method = it) }, Modifier.width(112.dp), "Show Receiver Options", Color.Transparent)
         Spacer(Modifier.height(16.dp))
         Properties(kind.props)
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(12.dp))
         T("URL", 18.sp)
-        Field(t.value, { t = t.copy(value = it.trim()) }, "", Modifier.fillMaxWidth().padding(top = 4.dp), singleLine = false, minHeight = 130.dp, keyboard = KeyboardType.Uri)
+        Field(t.value, { t = t.copy(value = it.trim()) }, "", Modifier.fillMaxWidth().padding(top = 4.dp), singleLine = false, minHeight = 155.dp, keyboard = KeyboardType.Uri)
         Spacer(Modifier.height(16.dp))
         T("Headers", 18.sp)
         t.headers.forEachIndexed { i, h ->
@@ -378,15 +379,15 @@ fun UrlConfigDialog(initial: Target, kind: UrlKind, onCancel: () -> Unit, onSave
                 Field(h.key, { v -> t = t.copy(headers = t.headers.toMutableList().also { it[i] = h.copy(key = v) }) }, "Key", Modifier.weight(0.35f))
                 Spacer(Modifier.width(8.dp))
                 Field(h.value, { v -> t = t.copy(headers = t.headers.toMutableList().also { it[i] = h.copy(value = v) }) }, "Value", Modifier.weight(0.65f))
-                IconButton({ t = t.copy(headers = t.headers.toMutableList().also { it.removeAt(i) }) }) { Icon(Icons.Default.Delete, "Delete Header", Modifier.size(30.dp)) }
+                IconButton({ t = t.copy(headers = t.headers.toMutableList().also { it.removeAt(i) }) }) { Icon(Icons.Outlined.Delete, "Delete Header", Modifier.size(30.dp), tint = Color.Black) }
             }
         }
-        GreenButton("Add Header", { t = t.copy(headers = t.headers + Header()) }, Modifier.padding(top = 16.dp))
+        GreenButton("Add Header", { t = t.copy(headers = t.headers + Header()) }, Modifier.padding(top = 18.dp))
         if (t.method != "GET") {
-            Row(Modifier.fillMaxWidth().padding(top = 24.dp), verticalAlignment = Alignment.Bottom) {
+            Row(Modifier.fillMaxWidth().padding(top = 20.dp), verticalAlignment = Alignment.Bottom) {
                 T("Body", 18.sp, modifier = Modifier.weight(1f))
                 Box {
-                    Row(Modifier.border(1.dp, Border, RoundedCornerShape(3.dp)).clickable { tplOpen = true }.padding(horizontal = 18.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Row(Modifier.border(1.dp, Border, RoundedCornerShape(3.dp)).clickable { tplOpen = true }.padding(horizontal = 12.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                         T("Templates", 18.sp, Green); Icon(Icons.Default.ArrowDropDown, "Show Receiver Options", tint = Green)
                     }
                     Menu(tplOpen, { tplOpen = false }, kind.templates.map { (n, b) -> n to { t = t.copy(body = b) } })
@@ -404,40 +405,40 @@ fun TemplateEditor(title: String, help: String, chips: List<Chip>, defaults: Lis
     var preview by remember { mutableStateOf(true) }
     var custom by remember { mutableStateOf("") }
     fun commit() { if (custom.isNotBlank()) { onChange(chips + Chip(ChipType.Text, custom.trim())); custom = "" } }
-    Heading(title, 24.sp, FontWeight.SemiBold) { showHelp = true }
+    Heading(title, 22.5.sp, FontWeight.SemiBold) { showHelp = true }
     if (showHelp) InfoDialog(title, help) { showHelp = false }
-    Column(Modifier.padding(top = 10.dp).fillMaxWidth().border(1.5.dp, GreenLight, RoundedCornerShape(4.dp)).padding(horizontal = 12.dp, vertical = 10.dp)) {
+    Column(Modifier.padding(top = 10.dp).fillMaxWidth().border(1.5.dp, GreenLight, RoundedCornerShape(4.dp)).padding(horizontal = 6.dp, vertical = 10.dp)) {
         Row(Modifier.fillMaxWidth().clickable { preview = !preview }, verticalAlignment = Alignment.CenterVertically) {
-            T("Preview", 19.sp, modifier = Modifier.weight(1f))
+            T("Preview", 18.sp, modifier = Modifier.weight(1f))
             Icon(if (preview) Icons.Default.Remove else Icons.Default.Add, "Toggle Preview", tint = Green, modifier = Modifier.size(34.dp))
         }
-        if (preview) T(render(chips + listOfNotNull(custom.takeIf { it.isNotBlank() }?.let { Chip(ChipType.Text, it) }), sample, ruleName, preview = true).trimEnd(), 17.sp, modifier = Modifier.padding(top = 6.dp))
+        if (preview) T(render(chips + listOfNotNull(custom.takeIf { it.isNotBlank() }?.let { Chip(ChipType.Text, it) }), sample, ruleName, preview = true).trimEnd(), 16.sp, modifier = Modifier.padding(top = 6.dp))
     }
-    Row(Modifier.fillMaxWidth().padding(top = 24.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.fillMaxWidth().padding(top = 20.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
         T("Added Details", 18.sp, modifier = Modifier.weight(1f))
         T("Reset", 17.sp, Green, FontWeight.SemiBold, Modifier.clickable { onChange(defaults); custom = "" }.padding(horizontal = 16.dp))
     }
     @OptIn(ExperimentalLayoutApi::class)
-    FlowRow(Modifier.fillMaxWidth().border(1.dp, Border, RoundedCornerShape(4.dp)).padding(8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    FlowRow(Modifier.fillMaxWidth().border(1.dp, Border, RoundedCornerShape(4.dp)).padding(horizontal = 5.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp)) {
         chips.forEachIndexed { i, c -> TemplateChip(if (c.type == ChipType.Text) c.text else c.type.label, false) { onChange(chips.toMutableList().also { it.removeAt(i) }) } }
-        BasicTextField(custom, { v -> if (v.endsWith("\n")) { custom = v.trimEnd(); commit() } else custom = v }, Modifier.widthIn(min = 120.dp).height(44.dp).padding(top = 10.dp),
-            textStyle = TextStyle(fontFamily = Montserrat, fontSize = 18.sp), singleLine = false)
+        BasicTextField(custom, { v -> if (v.endsWith("\n")) { custom = v.trimEnd(); commit() } else custom = v }, Modifier.widthIn(min = 120.dp).height(36.dp).padding(top = 8.dp),
+            textStyle = TextStyle(fontFamily = Montserrat, fontSize = 15.5.sp), singleLine = false)
     }
-    T("Available Details", 18.sp, modifier = Modifier.padding(top = 24.dp, bottom = 8.dp))
+    T("Available Details", 18.sp, modifier = Modifier.padding(top = 20.dp, bottom = 8.dp))
     @OptIn(ExperimentalLayoutApi::class)
-    FlowRow(Modifier.fillMaxWidth().border(1.dp, Border, RoundedCornerShape(4.dp)).padding(8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    FlowRow(Modifier.fillMaxWidth().border(1.dp, Border, RoundedCornerShape(4.dp)).padding(horizontal = 5.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp)) {
         available.filter { it == ChipType.NewLine || chips.none { c -> c.type == it } }.forEach { ty -> TemplateChip(ty.label, true) { commit(); onChange(chips + Chip(ty)) } }
     }
 }
 
 @Composable
 fun TemplateChip(text: String, add: Boolean, onClick: () -> Unit) =
-    Row(Modifier.height(44.dp).background(ChipBg, CircleShape).clickable(onClick = onClick).padding(start = 14.dp, end = 22.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.height(36.dp).background(ChipBg, CircleShape).clickable(onClick = onClick).padding(start = 5.dp, end = 15.dp), verticalAlignment = Alignment.CenterVertically) {
         Icon(if (add) Icons.Default.Add else Icons.Default.Remove, if (add) "Add" else "Remove Chip", tint = Color(0xFF646464), modifier = Modifier.size(28.dp))
-        Spacer(Modifier.width(14.dp))
-        T(text, 18.sp, Color(0xFF1C1C1C))
+        Spacer(Modifier.width(11.dp))
+        T(text, 15.5.sp, Color(0xFF1C1C1C))
     }
 
 /** "Forward message if [Any|All] condition(s) are met." editor for one condition group. */
@@ -478,7 +479,7 @@ fun GroupDialog(initial: Group, noun: String, onDelete: () -> Unit, onCancel: ()
 
 @Composable
 fun DaysRow(days: Set<Int>, onChange: (Set<Int>) -> Unit) =
-    Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    Row(Modifier.widthIn(max = 387.dp).fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) { // original: 45dp circles, 12dp apart
         // Sunday first, like the original (DayOfWeek values: Mon=1..Sun=7)
         listOf(7 to "S", 1 to "M", 2 to "T", 3 to "W", 4 to "T", 5 to "F", 6 to "S").forEach { (d, l) ->
             val on = d in days
@@ -521,7 +522,7 @@ fun ScheduleSection(r: Rule, noun: String, dayHelp: String = "$noun will be forw
 @Composable
 fun WizardBar(step: Int, steps: Int, onPrev: () -> Unit, onNext: () -> Unit) =
     Row(Modifier.fillMaxWidth().background(Color.White).padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-        GreenButton("Previous", onPrev, Modifier.width(112.dp), enabled = step > 0)
+        GreenButton("Previous", onPrev, Modifier.width(112.dp), enabled = step > 0, weight = FontWeight.Normal)
         Row(Modifier.weight(1f), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
             repeat(steps) { i -> Box(Modifier.padding(horizontal = 6.dp).size(if (i == step) 16.dp else 10.dp).background(if (i == step) Green else Grey, CircleShape)) }
         }
