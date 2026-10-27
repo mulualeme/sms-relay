@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.5
+
+### Fixed
+- **The app no longer closes when many messages arrive at once.** Each incoming SMS was held open until its forward finished. Forwards run one at a time and can take up to 35 seconds on a slow network, so queued messages ran past Android's time limit and Android closed the app. Each SMS is now released within 8 seconds, and the forward continues in the background.
+- **Less load on the screen thread during bursts of messages.** The MMS watcher was triggered by every SMS and checked the message database on the screen thread. It now runs in the background.
+- **History opens quickly with many entries.** Only the entries on screen are drawn, instead of all 1,000.
+
 ## v1.4
 
 ### Fixed
