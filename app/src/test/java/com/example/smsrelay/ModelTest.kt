@@ -108,3 +108,21 @@ class ModelTest {
         assertTrue(validEmail("a@b.co, c@d.org")); assertFalse(validEmail("nope"))
     }
 }
+
+class BackupTest {
+    @Test fun roundTripAndMerge() {
+        val json = kotlinx.serialization.json.Json { ignoreUnknownKeys = true; encodeDefaults = true }
+        val a = Rule(name = "Bank", kind = RuleKind.ADVANCED, allSenders = false, senders = listOf(Condition(Filter.Contains, "CBE")),
+            targets = listOf(Target(TargetType.URL, "https://example.com/hook", headers = listOf(Header("X-Key", "1")), body = "{\"m\":\"{msg}\"}")))
+        val b = Rule(name = "Alerts", kind = RuleKind.NOTIFICATION, allApps = false, apps = listOf("com.whatsapp"))
+        val text = json.encodeToString(RulesFile.serializer(), RulesFile(rules = listOf(a, b)))
+        val back = json.decodeFromString(RulesFile.serializer(), text)
+        assertEquals(listOf(a, b), back.rules)
+        assertEquals(APP_NAME, back.app)
+
+        val old = listOf(a.copy(name = "Old bank"), Rule(name = "Mine"))
+        val merged = mergeRules(old, back.rules)
+        assertEquals(listOf("Bank", "Mine", "Alerts"), merged.map { it.name })
+        assertEquals(merged, mergeRules(merged, back.rules)) // re-importing changes nothing
+    }
+}

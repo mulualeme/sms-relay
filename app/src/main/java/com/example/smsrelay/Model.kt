@@ -298,3 +298,9 @@ fun parseRemoteReply(body: String): Pair<String, String>? {
     val m = Regex("^\\s*@(?:\\(([^)]+)\\)|(\\S+))\\s+([\\s\\S]+)$").find(body) ?: return null
     return (m.groupValues[1].ifEmpty { m.groupValues[2] }).trim() to m.groupValues[3].trim()
 }
+
+/** Import merge: an incoming rule replaces the one with the same id, new ones are appended (re-importing is a no-op). */
+fun mergeRules(existing: List<Rule>, incoming: List<Rule>): List<Rule> {
+    val byId = incoming.associateBy { it.id }
+    return existing.map { byId[it.id] ?: it } + incoming.filter { r -> existing.none { it.id == r.id } }
+}

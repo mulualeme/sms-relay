@@ -100,6 +100,7 @@ Example generic webhook body:
   Write `@`, then the phone number or saved contact name to send to, then the message. Wrap contact names that contain spaces in parentheses.
 - **RCS.** Chat messages that only show up as notifications from your messaging app can be forwarded too. This needs Notification Access.
 - **Offline retry.** Forwards that fail because there is no internet are retried automatically when the connection returns, for up to five attempts.
+- **Export / import rules.** In **Settings → Rules**, save all rules to a `.json` file and load them on another phone, or after a reinstall. An imported rule replaces the rule with the same ID if it already exists, and is added otherwise, so importing the same file twice changes nothing. Exported files can contain URL headers such as API keys, so keep them private.
 - **History.** Every forward is logged with its result per destination. You can view the exact message sent and any error. History is kept for a configurable number of days.
 - **Stay running.** A sticky notification and the battery-optimization setting keep forwarding alive in the background, and rules start working again after a reboot.
 

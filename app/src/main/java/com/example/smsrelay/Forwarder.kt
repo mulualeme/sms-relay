@@ -52,6 +52,7 @@ import javax.net.ssl.SSLSocketFactory
 @Serializable data class RemoteReply(val allowAll: Boolean = false, val numbers: List<String> = listOf(""))
 @Serializable data class Result(val type: TargetType, val value: String, val ok: Boolean, val error: String? = null)
 @Serializable data class History(val time: Long, val rule: String, val sender: String, val body: String, val sent: String, val results: List<Result>, val kind: String = "Forward")
+@Serializable data class RulesFile(val app: String = APP_NAME, val version: Int = 1, val rules: List<Rule> = emptyList())
 @Serializable data class Pending(val ruleId: String, val event: Event, val targets: List<Target>, val tries: Int = 0)
 @Serializable data class ReplyState(val count: Int = 0, val last: Long = 0, val day: String = "")
 
@@ -64,6 +65,16 @@ class Store(ctx: Context) {
     private inline fun <reified T> put(k: String, v: T) = p.edit().putString(k, json.encodeToString(v)).apply()
 
     var rules: List<Rule> get() = get("rules2", emptyList()); set(v) = put("rules2", v)
+
+    fun exportRules(): String = json.encodeToString(RulesFile(rules = rules))
+
+    /** Rules with an id we already have are replaced, the rest are added. Returns how many were imported. */
+    fun importRules(text: String): Int {
+        val file = runCatching { json.decodeFromString<RulesFile>(text) }.getOrNull()
+        require(file != null && file.app == APP_NAME) { "This is not a $APP_NAME rules file." }
+        rules = mergeRules(rules, file.rules)
+        return file.rules.size
+    }
     var settings: Settings get() = get("settings2", Settings()); set(v) = put("settings2", v)
     var history: List<History> get() = get("history2", emptyList()); set(v) = put("history2", v)
     var pending: List<Pending> get() = get("pending2", emptyList()); set(v) = put("pending2", v)

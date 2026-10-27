@@ -329,8 +329,26 @@ private fun ReceiverRowPhoneOnly(value: String, onChange: (String) -> Unit) {
 // ---------------- Settings ----------------
 
 @Composable
-fun SettingsScreen(st: Store, onMenu: () -> Unit, onEmail: () -> Unit) {
+fun SettingsScreen(st: Store, onMenu: () -> Unit, onRulesChanged: () -> Unit, onEmail: () -> Unit) {
     val ctx = LocalContext.current
+    var backupMsg by remember { mutableStateOf<String?>(null) }
+    backupMsg?.let { InfoDialog(APP_NAME, it) { backupMsg = null } }
+    val exportRules = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+        uri ?: return@rememberLauncherForActivityResult
+        backupMsg = runCatching {
+            ctx.contentResolver.openOutputStream(uri)!!.use { it.write(st.exportRules().toByteArray()) }
+            "${st.rules.size} rule(s) exported."
+        }.getOrElse { "Export failed: ${it.message}" }
+    }
+    val importRules = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        uri ?: return@rememberLauncherForActivityResult
+        backupMsg = runCatching {
+            val text = ctx.contentResolver.openInputStream(uri)!!.use { it.readBytes().decodeToString() }
+            val n = st.importRules(text)
+            onRulesChanged()
+            "$n rule(s) imported."
+        }.getOrElse { "Import failed: ${it.message}" }
+    }
     var s by remember { mutableStateOf(st.settings) }
     var warn by remember { mutableStateOf(false) }
     fun save(n: Settings) { s = n; st.settings = n; AlwaysOnService.sync(ctx) }
@@ -356,6 +374,17 @@ fun SettingsScreen(st: Store, onMenu: () -> Unit, onEmail: () -> Unit) {
                 Field(s.historyDays.toString(), { v -> v.filter(Char::isDigit).take(3).toIntOrNull()?.let { save(s.copy(historyDays = it)) } }, "",
                     Modifier.width(70.dp), keyboard = KeyboardType.Number, minHeight = 52.dp)
             }
+            Section("Rules")
+            Row(Modifier.fillMaxWidth().clickable { exportRules.launch("sms-relay-rules.json") }.padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                T("Export Rules", modifier = Modifier.weight(1f))
+                Icon(Icons.Default.Upload, "Export Rules", tint = Green, modifier = Modifier.size(30.dp))
+            }
+            Row(Modifier.fillMaxWidth().clickable { importRules.launch(arrayOf("application/json", "application/octet-stream", "text/*")) }.padding(vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically) {
+                T("Import Rules", modifier = Modifier.weight(1f))
+                Icon(Icons.Default.Download, "Import Rules", tint = Green, modifier = Modifier.size(30.dp))
+            }
+            T("Exported files can contain URL headers such as API keys. Keep them private.", 13.sp, Grey)
             Section("Email")
             Row(Modifier.fillMaxWidth().clickable(onClick = onEmail).padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                 T("Email Configuration", modifier = Modifier.weight(1f))

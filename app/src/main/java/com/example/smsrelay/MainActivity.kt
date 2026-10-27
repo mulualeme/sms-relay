@@ -120,7 +120,7 @@ fun App(st: Store) {
                 Root.Dashboard -> DashboardScreen(st, rules, openMenu, { push(Screen.History) }, { push(Screen.RulesList) }, { push(Screen.SelectRule) })
                 Root.PhoneAlerts -> PhoneAlertsScreen(st, openMenu)
                 Root.RemoteReply -> RemoteReplyScreen(st, openMenu)
-                Root.Settings -> SettingsScreen(st, openMenu) { push(Screen.EmailConfig) }
+                Root.Settings -> SettingsScreen(st, openMenu, { rules = st.rules }) { push(Screen.EmailConfig) }
                 Root.Feedback -> FeedbackScreen(openMenu)
                 Root.Help -> HelpScreen(openMenu)
                 Root.Privacy -> PrivacyScreen(openMenu)
