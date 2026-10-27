@@ -65,9 +65,17 @@ fun sims(ctx: Context): List<Sim> {
     }.getOrDefault(emptyList())
 }
 
+/**
+ * Keeps the broadcast alive while the forward runs, but never past 8 s: forwards run one at a time and can take
+ * 35 s each (network timeouts), so when messages pile up, holding every broadcast until its turn made Android
+ * kill the app as not responding. The forward itself continues on the Forwarder thread.
+ */
 private fun BroadcastReceiver.dispatch(ctx: Context, e: Event) {
     val p = goAsync()
-    Forwarder.onEvent(ctx.applicationContext, e) { p.finish() }
+    val finished = java.util.concurrent.atomic.AtomicBoolean()
+    val finish = { if (finished.compareAndSet(false, true)) p.finish() }
+    Handler(Looper.getMainLooper()).postDelayed(finish, 8_000)
+    Forwarder.onEvent(ctx.applicationContext, e, finish)
 }
 
 class SmsReceiver : BroadcastReceiver() {
@@ -196,13 +204,15 @@ class NotifListener : NotificationListenerService() {
 object Mms {
     private val INBOX = Uri.parse("content://mms/inbox")
     private var observer: android.database.ContentObserver? = null
+    // the observer fires for every SMS change too, so it queries on this thread, not the main one
+    private val worker by lazy { Handler(android.os.HandlerThread("mms").apply { start() }.looper) }
 
     fun watch(ctx: Context) {
         if (observer != null || !ctx.granted(Manifest.permission.READ_SMS)) return
         val app = ctx.applicationContext
         val prefs = app.getSharedPreferences("mms", Context.MODE_PRIVATE)
         if (!prefs.contains("lastId")) prefs.edit().putLong("lastId", latestId(app)).apply() // don't forward old MMS
-        observer = object : android.database.ContentObserver(Handler(Looper.getMainLooper())) {
+        observer = object : android.database.ContentObserver(worker) {
             override fun onChange(selfChange: Boolean) = check(app)
         }.also { app.contentResolver.registerContentObserver(Uri.parse("content://mms-sms/"), true, it) }
     }

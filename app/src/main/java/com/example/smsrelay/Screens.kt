@@ -5,6 +5,8 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.PowerManager
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import android.provider.Settings as SysSettings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -190,8 +192,9 @@ fun HistoryScreen(st: Store, onBack: () -> Unit) {
     Column(Modifier.fillMaxSize().background(Color.White)) {
         AppBar("History", onNav = onBack)
         if (items.isEmpty()) T("No Message History Found", 18.sp, Grey, modifier = Modifier.fillMaxSize().wrapContentSize())
-        Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 12.dp, vertical = 20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            items.forEach { h ->
+        // lazy: history holds up to 1000 entries, composing them all at once made the screen slow and memory hungry
+        LazyColumn(contentPadding = PaddingValues(horizontal = 12.dp, vertical = 20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            items(items) { h ->
                 val ok = h.results.count { it.ok }
                 val (status, color) = when (ok) { h.results.size -> "Success" to OkGreen; 0 -> "Failed" to ErrRed; else -> "Partial Success" to Orange }
                 WhiteCard {
