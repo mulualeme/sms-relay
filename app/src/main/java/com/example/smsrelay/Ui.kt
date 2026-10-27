@@ -90,15 +90,28 @@ fun RelayTheme(content: @Composable () -> Unit) {
             titleLarge = base.copy(fontSize = 22.sp), titleMedium = base.copy(fontSize = 17.sp), labelLarge = base.copy(fontSize = 16.sp, fontWeight = FontWeight.SemiBold),
         ),
     ) {
-        // Everything was ~1.25x the original on device; scale all dp/sp down uniformly.
-        val real = LocalDensity.current
-        CompositionLocalProvider(LocalDensity provides Density(real.density * UI_SCALE, real.fontScale)) {
-            ProvideTextStyle(base.copy(fontSize = 17.sp), content)
-        }
+        Scaled { ProvideTextStyle(base.copy(fontSize = 17.sp), content) }
     }
 }
 
-const val UI_SCALE = 0.8f // ponytail: one knob for overall size; tune if it still feels off
+// Everything was ~1.15x the original on device, so all dp/sp are scaled down uniformly.
+const val UI_SCALE = 0.88f // ponytail: one knob for overall size; tune if it still feels off
+
+/** Applies UI_SCALE from the display's real density, so wrapping twice is harmless. */
+@Composable
+fun Scaled(content: @Composable () -> Unit) {
+    val res = LocalContext.current.resources
+    CompositionLocalProvider(LocalDensity provides Density(res.displayMetrics.density * UI_SCALE, res.configuration.fontScale), content = content)
+}
+
+/** Dialogs and dropdowns open in their own window, which resets density, so they must re-apply the scale. */
+@Composable
+fun ScaledDialog(onDismiss: () -> Unit, properties: DialogProperties = DialogProperties(), content: @Composable () -> Unit) =
+    Dialog(onDismiss, properties) { Scaled(content) }
+
+@Composable
+fun ScaledMenu(expanded: Boolean, onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) =
+    DropdownMenu(expanded, onDismiss, containerColor = Color.White, shape = RoundedCornerShape(4.dp)) { val scope = this; Scaled { scope.content() } }
 
 @Composable
 fun T(text: String, size: TextUnit = 17.sp, color: Color = Color.Black, weight: FontWeight = FontWeight.Normal, modifier: Modifier = Modifier, maxLines: Int = Int.MAX_VALUE) =
@@ -106,10 +119,10 @@ fun T(text: String, size: TextUnit = 17.sp, color: Color = Color.Black, weight: 
 
 @Composable
 fun AppBar(title: String, centered: Boolean = false, icon: ImageVector = Icons.AutoMirrored.Filled.ArrowBack, desc: String = "Navigate Back", onNav: () -> Unit) {
-    Box(Modifier.fillMaxWidth().height(70.dp).background(Green).shadow(2.dp)) { // toolbar sized up so it stays at the original 56dp after UI_SCALE
+    Box(Modifier.fillMaxWidth().height(64.dp).background(Green).shadow(2.dp)) { // 64dp x UI_SCALE = the original 56dp toolbar
         Box(Modifier.fillMaxSize().background(Green))
-        IconButton(onNav, Modifier.align(Alignment.CenterStart).padding(start = 4.dp)) { Icon(icon, desc, tint = Color.White, modifier = Modifier.size(31.dp)) }
-        T(title, 25.sp, Color.White, modifier = if (centered) Modifier.align(Alignment.Center) else Modifier.align(Alignment.CenterStart).padding(start = 88.dp))
+        IconButton(onNav, Modifier.align(Alignment.CenterStart).padding(start = 4.dp)) { Icon(icon, desc, tint = Color.White, modifier = Modifier.size(28.dp)) }
+        T(title, 23.sp, Color.White, modifier = if (centered) Modifier.align(Alignment.Center) else Modifier.align(Alignment.CenterStart).padding(start = 80.dp))
     }
 }
 
@@ -122,11 +135,11 @@ fun Heading(text: String, size: TextUnit = 20.sp, weight: FontWeight = FontWeigh
 
 /** Info / help popup: title, message, Ok. */
 @Composable
-fun InfoDialog(title: String, text: String, onDismiss: () -> Unit) = PlainDialog(title, text, onDismiss) { GreenButton("Ok", onDismiss) }
+fun InfoDialog(title: String, text: String, bg: Color = Bg, onDismiss: () -> Unit) = PlainDialog(title, text, onDismiss, bg) { GreenButton("Ok", onDismiss) }
 
 @Composable
-fun PlainDialog(title: String, text: String, onDismiss: () -> Unit, buttons: @Composable RowScope.() -> Unit) = Dialog(onDismiss) {
-    Surface(shape = RoundedCornerShape(6.dp), color = Color(0xFFE6E6E6)) {
+fun PlainDialog(title: String, text: String, onDismiss: () -> Unit, bg: Color = Bg, buttons: @Composable RowScope.() -> Unit) = ScaledDialog(onDismiss) {
+    Surface(shape = RoundedCornerShape(6.dp), color = bg) {
         Column(Modifier.padding(start = 24.dp, end = 16.dp, top = 24.dp, bottom = 16.dp)) {
             T(title, 20.sp, weight = FontWeight.Medium)
             Spacer(Modifier.height(16.dp))
@@ -144,7 +157,7 @@ fun ConfirmDialog(title: String, text: String, no: String, yes: String, onNo: ()
 /** Dialog with the green title bar (Edit URL Config, Send Test Email, Test Rule). */
 @Composable
 fun GreenDialog(title: String, onDismiss: () -> Unit, full: Boolean = false, bg: Color = Color(0xFFF7F7F7), footer: @Composable RowScope.() -> Unit, content: @Composable ColumnScope.() -> Unit) =
-    Dialog(onDismiss, DialogProperties(usePlatformDefaultWidth = false)) {
+    ScaledDialog(onDismiss, DialogProperties(usePlatformDefaultWidth = false)) {
         Surface(Modifier.padding(horizontal = 16.dp, vertical = if (full) 24.dp else 0.dp).fillMaxWidth().then(if (full) Modifier.fillMaxHeight() else Modifier),
             shape = RoundedCornerShape(4.dp), color = bg) {
             Column {
@@ -208,7 +221,7 @@ fun <T> DropBox(value: T, options: List<T>, label: (T) -> String, onPick: (T) ->
 
 @Composable
 fun Menu(open: Boolean, onClose: () -> Unit, items: List<Pair<String, () -> Unit>>, icons: List<ImageVector?>? = null) =
-    DropdownMenu(open, onClose, containerColor = Color.White, shape = RoundedCornerShape(4.dp)) {
+    ScaledMenu(open, onClose) {
         items.forEachIndexed { i, (t, f) ->
             DropdownMenuItem({ T(t, 17.sp, if (icons != null) Color(0xFF555555) else Color.Black) }, { onClose(); f() },
                 leadingIcon = icons?.get(i)?.let { { Icon(it, null, tint = Color(0xFF555555), modifier = Modifier.size(28.dp)) } },
@@ -282,7 +295,7 @@ fun ReceiverRow(t: Target, onChange: (Target) -> Unit, error: Boolean = false, o
                 TargetIcon(t.type, Green, 26.dp)
                 Icon(Icons.Default.ArrowDropDown, "Show Receiver Options", tint = Green)
             }
-            DropdownMenu(open, { open = false }, containerColor = Color.White) {
+            ScaledMenu(open, { open = false }) {
                 TargetType.entries.forEach { ty ->
                     DropdownMenuItem({ T(ty.label, 18.sp) }, { open = false; if (ty != t.type) onChange(Target(ty)) }, leadingIcon = { TargetIcon(ty, Color.Black) },
                         contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp))
@@ -431,7 +444,7 @@ fun TemplateChip(text: String, add: Boolean, onClick: () -> Unit) =
 @Composable
 fun GroupDialog(initial: Group, noun: String, onDelete: () -> Unit, onCancel: () -> Unit, onSave: (Group) -> Unit) {
     var g by remember { mutableStateOf(initial.copy(conditions = initial.conditions.ifEmpty { listOf(Condition()) })) }
-    Dialog(onCancel, DialogProperties(usePlatformDefaultWidth = false)) {
+    ScaledDialog(onCancel, DialogProperties(usePlatformDefaultWidth = false)) {
         Surface(Modifier.padding(16.dp).fillMaxWidth(), shape = RoundedCornerShape(6.dp), color = DialogBg) {
             Column(Modifier.verticalScroll(rememberScrollState()).padding(20.dp)) {
                 @OptIn(ExperimentalLayoutApi::class)

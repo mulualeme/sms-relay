@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.3
+
+### Fixed
+- **Popups and dropdowns now use the same size as the rest of the app.** They open in their own window, which reset them to full size, so they looked about 15% larger than the screens behind them.
+- **Overall size restored to 0.88×.** v1.1 and v1.2 shipped at 0.8× by mistake, which made everything slightly too small.
+- **Dialog backgrounds match the original.** Help, confirm and test dialogs are near-white; the History "Message Sent" / error popups stay grey.
+
 ## v1.2
 
 ### New

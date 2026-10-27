@@ -186,7 +186,7 @@ private val HIST_FMT = DateTimeFormatter.ofPattern("MMMM d, yyyy 'at' h:mm a", L
 fun HistoryScreen(st: Store, onBack: () -> Unit) {
     val items = remember { st.history }
     var dialog by remember { mutableStateOf<Pair<String, String>?>(null) }
-    dialog?.let { (a, b) -> InfoDialog(a, b) { dialog = null } }
+    dialog?.let { (a, b) -> InfoDialog(a, b, Color(0xFFE6E6E6)) { dialog = null } } // History popups are grey in the original
     Column(Modifier.fillMaxSize().background(Color.White)) {
         AppBar("History", onNav = onBack)
         if (items.isEmpty()) T("No Message History Found", 18.sp, Grey, modifier = Modifier.fillMaxSize().wrapContentSize())
