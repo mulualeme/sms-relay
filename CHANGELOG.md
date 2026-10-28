@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.7
+
+### Changed
+- **The Test button shows a spinner while it works,** in Test Rule and Send Test Email, instead of a separate "Loading" line.
+- **Message boxes keep their size and scroll inside, like the original,** instead of growing as you type. This covers the test popups and the rule creation screens (auto-reply message, URL and body).
+
 ## v1.6
 
 ### Fixed

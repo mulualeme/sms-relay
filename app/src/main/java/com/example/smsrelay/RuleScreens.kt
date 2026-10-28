@@ -455,14 +455,13 @@ fun TestRuleDialog(rule: Rule, onClose: () -> Unit) {
                 }
                 busy = false
             }
-        }, enabled = !busy)
+        }, loading = busy)
     }) {
         T("You can override the message and its sender to test the rule.", 18.sp)
         T("Sender", 14.sp, modifier = Modifier.padding(top = 20.dp, bottom = 4.dp))
         Field(sender, { sender = it }, "", Modifier.fillMaxWidth(), keyboard = KeyboardType.Phone)
         T("Message", 14.sp, modifier = Modifier.padding(top = 16.dp, bottom = 4.dp))
         Field(msg, { msg = it }, "", Modifier.fillMaxWidth(), singleLine = false, minHeight = 120.dp)
-        if (busy) T("Loading", 16.sp, Grey, modifier = Modifier.padding(top = 20.dp))
         result?.let { T(it, 16.sp, modifier = Modifier.padding(top = 20.dp)) }
     }
 }

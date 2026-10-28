@@ -171,12 +171,17 @@ fun GreenDialog(title: String, onDismiss: () -> Unit, full: Boolean = false, bg:
     }
 
 @Composable
-fun GreenButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true, icon: ImageVector? = null, weight: FontWeight = FontWeight.SemiBold) =
-    Button(onClick, modifier.heightIn(min = 40.dp), enabled = enabled, shape = RoundedCornerShape(4.dp),
+fun GreenButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true, icon: ImageVector? = null, weight: FontWeight = FontWeight.SemiBold,
+                loading: Boolean = false) =
+    Button({ if (!loading) onClick() }, modifier.heightIn(min = 40.dp), enabled = enabled, shape = RoundedCornerShape(4.dp),
         colors = ButtonDefaults.buttonColors(Green, Color.White, Divider, Grey), elevation = ButtonDefaults.buttonElevation(3.dp),
         contentPadding = PaddingValues(horizontal = 20.dp)) {
         icon?.let { Icon(it, null, Modifier.size(24.dp)); Spacer(Modifier.width(12.dp)) }
-        T(text, 16.sp, if (enabled) Color.White else Grey, weight, maxLines = 1)
+        // the label stays (invisible) under the spinner so the button keeps its size
+        Box(contentAlignment = Alignment.Center) {
+            T(text, 16.sp, if (!enabled) Grey else if (loading) Color.Transparent else Color.White, weight, maxLines = 1)
+            if (loading) CircularProgressIndicator(Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
+        }
     }
 
 @Composable
@@ -191,7 +196,7 @@ fun Field(value: String, onChange: (String) -> Unit, placeholder: String, modifi
           error: Boolean = false, keyboard: KeyboardType = KeyboardType.Text, password: Boolean = false, trailing: (@Composable () -> Unit)? = null) {
     var focused by remember { mutableStateOf(false) }
     var show by remember { mutableStateOf(false) }
-    BasicTextField(value, onChange, modifier.onFocusChanged { focused = it.isFocused }, singleLine = singleLine,
+    BasicTextField(value, onChange, modifier.then(if (singleLine) Modifier else Modifier.height(minHeight)).onFocusChanged { focused = it.isFocused }, singleLine = singleLine,
         textStyle = TextStyle(fontFamily = Montserrat, fontSize = 18.sp), keyboardOptions = KeyboardOptions(keyboardType = keyboard),
         visualTransformation = if (password && !show) PasswordVisualTransformation() else VisualTransformation.None,
         decorationBox = { inner ->

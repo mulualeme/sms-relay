@@ -479,14 +479,13 @@ fun TestEmailDialog(s: Settings, onClose: () -> Unit) {
                 }
                 busy = false
             }
-        }, enabled = validEmail(to) && !busy)
+        }, enabled = validEmail(to), loading = busy)
     }) {
         T("You can override the message and email address.", 19.sp)
         T("Receiver", 15.sp, modifier = Modifier.padding(top = 20.dp, bottom = 4.dp))
         Field(to, { to = it.trim() }, "Enter Email Address", Modifier.fillMaxWidth(), keyboard = KeyboardType.Email)
         T("Message", 15.sp, modifier = Modifier.padding(top = 16.dp, bottom = 4.dp))
         Field(msg, { msg = it }, "", Modifier.fillMaxWidth(), singleLine = false, minHeight = 120.dp)
-        if (busy) T("Loading", 16.sp, Grey, modifier = Modifier.padding(top = 16.dp))
         result?.let { T(it, 16.sp, modifier = Modifier.padding(top = 16.dp)) }
     }
 }
