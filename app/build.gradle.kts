@@ -12,8 +12,8 @@ android {
         applicationId = "com.example.smsrelay"
         minSdk = 26
         targetSdk = 35
-        versionCode = 6
-        versionName = "1.5"
+        versionCode = 7
+        versionName = "1.6"
     }
     // Release signing comes from env vars (GitHub secrets in CI); without them the release build is unsigned.
     val storeFile = System.getenv("SIGNING_STORE_FILE")

@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.6
+
+### Fixed
+- **No more long delays when messages pile up.** Forwards ran strictly one at a time, so one slow or failing request held up every message behind it, sometimes for minutes. Up to 4 messages are now forwarded at once.
+- **With no connection, forwards fail at once and wait for the network.** Before, each message waited out the full timeout (up to 35 seconds) before failing, and the next one then did the same.
+- **Retries start as soon as the network is back.** Before, they waited for Android's job scheduler, with delays growing to 1, 2 and then 4 minutes. If the app isn't running, the scheduler is still used as a fallback, now every 30 seconds instead of with growing delays.
+- **Shorter network timeouts:** 10 seconds to connect and 15 to respond. Email no longer waits indefinitely on a server that doesn't answer.
+- **Rules that only forward on Wi-Fi no longer give up while you're on mobile data.** Their queued forwards wait for Wi-Fi without using up any of their retries.
+
 ## v1.5
 
 ### Fixed

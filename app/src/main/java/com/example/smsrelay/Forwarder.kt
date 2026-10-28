@@ -10,6 +10,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.media.AudioManager
 import android.net.ConnectivityManager
+import android.net.Network
 import android.net.NetworkCapabilities
 import android.os.BatteryManager
 import android.os.Build
@@ -23,12 +24,16 @@ import java.io.IOException
 import java.io.InputStreamReader
 import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
+import java.net.InetSocketAddress
 import java.net.Socket
 import java.net.URL
 import java.net.URLEncoder
 import java.time.LocalDate
 import java.util.Base64
+import java.util.concurrent.Callable
 import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.concurrent.thread
 import javax.net.ssl.HttpsURLConnection
 import javax.net.ssl.SSLSocket
 import javax.net.ssl.SSLSocketFactory
@@ -99,10 +104,58 @@ class Store(ctx: Context) {
 private val NETWORK_ERRORS = listOf("Error in calling api", "Not Connected", "Error in connecting")
 
 object Forwarder {
-    private val pool = Executors.newSingleThreadExecutor()
+    // several at once: one by one, a single slow or failing target held up every message queued behind it
+    private val pool = Executors.newFixedThreadPool(4)
 
     fun onEvent(ctx: Context, e: Event, done: () -> Unit = {}) = pool.execute {
+        watchNetwork(ctx)
         try { handle(ctx, e) } catch (t: Throwable) { t.printStackTrace() } finally { done() }
+    }
+
+    private val watching = AtomicBoolean()
+
+    /** Retries queued forwards the moment the network is back, instead of waiting for JobScheduler's backoff. */
+    private fun watchNetwork(ctx: Context) {
+        if (!watching.compareAndSet(false, true)) return
+        val app = ctx.applicationContext
+        runCatching {
+            app.getSystemService(ConnectivityManager::class.java).registerDefaultNetworkCallback(object : ConnectivityManager.NetworkCallback() {
+                override fun onAvailable(n: Network) { thread { retryPending(app) } }
+                override fun onCapabilitiesChanged(n: Network, c: NetworkCapabilities) {
+                    if (c.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)) thread { retryPending(app) }
+                }
+            })
+        }
+    }
+
+    private val retrying = AtomicBoolean()
+
+    /** Re-sends queued network failures in parallel; returns true if some are still waiting. Never call from [pool]. */
+    fun retryPending(ctx: Context): Boolean {
+        val st = Store(ctx)
+        if (!online(ctx)) return st.pending.isNotEmpty() // offline: don't spend tries
+        if (!retrying.compareAndSet(false, true)) return true
+        try {
+            val queued = synchronized(Store::class) { st.pending.also { if (it.isNotEmpty()) st.pending = emptyList() } }
+            if (queued.isEmpty()) return false
+            val rules = st.rules.associateBy { it.id }
+            val wifi = onWifi(ctx)
+            val left = queued.map { p ->
+                pool.submit(Callable {
+                    val r = rules[p.ruleId] ?: return@Callable null
+                    if (r.wifiOnly && !wifi) return@Callable p // waits for Wi-Fi without using up its tries
+                    val failed = deliver(ctx, st, r, p.event, p.targets, queue = false).zip(p.targets).filter { !it.first.ok }.map { it.second }
+                    if (failed.isEmpty() || p.tries >= 5) null else p.copy(targets = failed, tries = p.tries + 1)
+                })
+            }.mapNotNull { it.get() }
+            if (left.isNotEmpty()) synchronized(Store::class) { st.pending = st.pending + left }
+            return left.isNotEmpty()
+        } finally { retrying.set(false) }
+    }
+
+    private fun online(ctx: Context): Boolean {
+        val cm = ctx.getSystemService(ConnectivityManager::class.java)
+        return cm.getNetworkCapabilities(cm.activeNetwork)?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
     }
 
     private fun handle(ctx: Context, e: Event) {
@@ -120,7 +173,7 @@ object Forwarder {
                 deliver(ctx, st, r, e, r.targets)
                 if (r.autoReply && r.replyMessage.isNotBlank()) sendReply(ctx, st, r, e, r.replyMessage)
             }
-            if (r.kind == RuleKind.AUTO_REPLY && autoReplyApplies(ctx, st, r, e)) {
+            if (r.kind == RuleKind.AUTO_REPLY && claimReply(ctx, st, r, e)) {
                 val delay = r.delay * 1000L
                 // ponytail: in-process delay; a very long delay is lost if Android kills the process. Use AlarmManager if that matters.
                 if (delay > 0) Thread { Thread.sleep(delay); sendReply(ctx, Store(ctx), r, e, r.replyMessage) }.start()
@@ -149,6 +202,8 @@ object Forwarder {
 
     private fun send(ctx: Context, s: Settings, r: Rule, e: Event, t: Target, text: String, subject: String) {
         if (t.type != TargetType.SMS && r.wifiOnly && !onWifi(ctx)) throw IOException("Not Connected To Wifi")
+        // fail at once with no connection instead of waiting out the timeouts; it is queued for retry
+        if (t.type != TargetType.SMS && !online(ctx)) throw IOException("Not Connected To Internet")
         when (t.type) {
             TargetType.SMS -> sendSms(ctx, t.value, text, if (r.sendSim == -2) e.subId else r.sendSim)
             TargetType.EMAIL -> sendMail(s, t.value, subject, text)
@@ -186,7 +241,7 @@ object Forwarder {
         val c = try { URL(url).openConnection() as HttpURLConnection } catch (x: Exception) { error("Invalid URL: $url") }
         try {
             c.requestMethod = method
-            c.connectTimeout = 15_000; c.readTimeout = 20_000
+            c.connectTimeout = 10_000; c.readTimeout = 15_000
             headers.forEach { c.setRequestProperty(it.key, it.value) }
             if (body != null) { c.doOutput = true; c.outputStream.use { it.write(body.toByteArray()) } }
             val code = c.responseCode
@@ -212,8 +267,11 @@ object Forwarder {
         require(c.host.isNotBlank()) { "Please enter SMTP host to continue" }
         val port = c.port.toIntOrNull() ?: if (c.ssl) 465 else 587
         val tls = SSLSocketFactory.getDefault() as SSLSocketFactory
-        var sock: Socket = try { if (c.ssl) tls.createSocket(c.host, port) else Socket(c.host, port) } catch (x: IOException) { throw IOException("Error in connecting to smtp server. ${x.message}", x) }
-        sock.soTimeout = 20_000
+        var sock: Socket = try {
+            // plain Socket(host, port) has no connect timeout and can hang for minutes on a bad network
+            Socket().apply { connect(InetSocketAddress(c.host, port), 10_000) }.let { if (c.ssl) tls.createSocket(it, c.host, port, true) else it }
+        } catch (x: IOException) { throw IOException("Error in connecting to smtp server. ${x.message}", x) }
+        sock.soTimeout = 15_000
         try {
             var r = BufferedReader(InputStreamReader(sock.getInputStream()))
             var w = OutputStreamWriter(sock.getOutputStream())
@@ -285,6 +343,15 @@ object Forwarder {
         }
     }
 
+    /** Checks and records the reply in one step, so two messages handled at once can't both pass "once a day". */
+    private fun claimReply(ctx: Context, st: Store, r: Rule, e: Event): Boolean = synchronized(Store::class) {
+        if (!autoReplyApplies(ctx, st, r, e)) return false
+        val key = r.id + "|" + e.sender.filter(Char::isDigit)
+        val s = st.replyStates[key] ?: ReplyState()
+        st.replyStates = st.replyStates + (key to ReplyState(s.count + 1, System.currentTimeMillis(), LocalDate.now().toString()))
+        true
+    }
+
     private fun condition(ctx: Context, c: ReplyCond): Boolean = when (c) {
         ReplyCond.Silent -> ctx.getSystemService(AudioManager::class.java).ringerMode != AudioManager.RINGER_MODE_NORMAL
         ReplyCond.Dnd -> ctx.getSystemService(NotificationManager::class.java).currentInterruptionFilter > NotificationManager.INTERRUPTION_FILTER_ALL
@@ -295,11 +362,6 @@ object Forwarder {
     private fun sendReply(ctx: Context, st: Store, r: Rule, e: Event, template: String) {
         val text = replyFormat(template, e)
         val res = runCatching { sendSms(ctx, e.sender, text, if (r.sendSim == -2 || r.sendSim == -1 && e.subId >= 0) e.subId else r.sendSim) }
-        val key = r.id + "|" + e.sender.filter(Char::isDigit)
-        synchronized(Store::class) {
-            val s = st.replyStates[key] ?: ReplyState()
-            st.replyStates = st.replyStates + (key to ReplyState(s.count + 1, System.currentTimeMillis(), LocalDate.now().toString()))
-        }
         st.record(History(System.currentTimeMillis(), r.name, e.name?.let { "${e.sender} ($it)" } ?: e.sender, e.body, text,
             listOf(Result(TargetType.SMS, e.sender, res.isSuccess, res.exceptionOrNull()?.message)), "Auto Reply"))
     }
@@ -308,18 +370,7 @@ object Forwarder {
 /** Retries queued deliveries once the network is back (original: NetworkConnectivityJobService). */
 class RetryJob : JobService() {
     override fun onStartJob(params: JobParameters): Boolean {
-        Thread {
-            val st = Store(this)
-            val queued = synchronized(Store::class) { st.pending.also { st.pending = emptyList() } }
-            val rules = st.rules.associateBy { it.id }
-            val left = queued.mapNotNull { p ->
-                val r = rules[p.ruleId] ?: return@mapNotNull null
-                val failed = Forwarder.deliver(this, st, r, p.event, p.targets, queue = false).zip(p.targets).filter { !it.first.ok }.map { it.second }
-                if (failed.isEmpty() || p.tries >= 5) null else p.copy(targets = failed, tries = p.tries + 1)
-            }
-            if (left.isNotEmpty()) synchronized(Store::class) { st.pending = st.pending + left }
-            jobFinished(params, left.isNotEmpty())
-        }.start()
+        thread { jobFinished(params, Forwarder.retryPending(this)) }
         return true
     }
 
@@ -327,12 +378,16 @@ class RetryJob : JobService() {
 
     companion object {
         fun schedule(ctx: Context, wifiOnly: Boolean = false) {
+            val js = ctx.getSystemService(JobScheduler::class.java)
+            // re-scheduling the same id cancels a retry that is already waiting or running
+            js.getPendingJob(1)?.let { @Suppress("DEPRECATION") if (wifiOnly || it.networkType == JobInfo.NETWORK_TYPE_ANY) return }
+            // fallback for when the app process is not running; while it is, the network callback retries at once
             val job = JobInfo.Builder(1, ComponentName(ctx, RetryJob::class.java))
                 .setRequiredNetworkType(if (wifiOnly) JobInfo.NETWORK_TYPE_UNMETERED else JobInfo.NETWORK_TYPE_ANY)
-                .setBackoffCriteria(60_000, JobInfo.BACKOFF_POLICY_EXPONENTIAL)
+                .setBackoffCriteria(30_000, JobInfo.BACKOFF_POLICY_LINEAR)
                 .setPersisted(true)
                 .build()
-            ctx.getSystemService(JobScheduler::class.java).schedule(job)
+            js.schedule(job)
         }
     }
 }
